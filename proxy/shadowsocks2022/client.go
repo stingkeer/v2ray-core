@@ -22,8 +22,9 @@ import (
 )
 
 type Client struct {
-	config *ClientConfig
-	ctx    context.Context
+	config         *ClientConfig
+	ctx            context.Context
+	clientUDPState *ClientUDPConnState
 }
 
 const UDPConnectionState = "UDPConnectionState"
@@ -53,8 +54,8 @@ func NewClientUDPConnState() (*ClientUDPConnState, error) {
 	return &ClientUDPConnState{initOnce: &sync.Once{}}, nil
 }
 
-func (c *Client) Process(ctx context.Context, link *transport.Link, dialer internet.Dialer) error {
-	outbound := session.OutboundFromContext(ctx)
+func (c *Client) Process(ctx1 context.Context, link *transport.Link, dialer internet.Dialer) error {
+	outbound := session.OutboundFromContext(ctx1)
 	if outbound == nil || !outbound.Target.IsValid() {
 		return newError("target not specified")
 	}
@@ -74,11 +75,12 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 
 	effectivePsk := c.config.Psk
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx1)
+
 	timer := signal.CancelAfterInactivity(ctx, cancel, time.Minute)
 
 	if packetConn, err := packetaddr.ToPacketAddrConn(link, destination); err == nil {
-		udpSession, err := c.getUDPSession(c.ctx, network, dialer, method, keyDerivation)
+		udpSession, err := c.getUDPSession(ctx, network, dialer, method, keyDerivation)
 		if err != nil {
 			return newError("failed to get UDP udpSession").Base(err)
 		}
@@ -158,7 +160,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		}
 		return nil
 	} else {
-		udpSession, err := c.getUDPSession(c.ctx, network, dialer, method, keyDerivation)
+		udpSession, err := c.getUDPSession(ctx, network, dialer, method, keyDerivation)
 		if err != nil {
 			return newError("failed to get UDP udpSession").Base(err)
 		}
@@ -178,17 +180,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 }
 
 func (c *Client) getUDPSession(ctx context.Context, network net.Network, dialer internet.Dialer, method Method, keyDerivation *BLAKE3KeyDerivation) (internet.AbstractPacketConn, error) {
-	storage := envctx.EnvironmentFromContext(ctx).(environment.ProxyEnvironment).TransientStorage()
-	clientUDPStateIfce, err := storage.Get(ctx, UDPConnectionState)
-	if err != nil {
-		return nil, newError("failed to get UDP connection state").Base(err)
-	}
-	clientUDPState, ok := clientUDPStateIfce.(*ClientUDPConnState)
-	if !ok {
-		return nil, newError("failed to cast UDP connection state")
-	}
-
-	sessionState, err := clientUDPState.GetOrCreateSession(func() (*ClientUDPSession, error) {
+	sessionState, err := c.clientUDPState.GetOrCreateSession(func() (*ClientUDPSession, error) {
 		var conn internet.Connection
 		err := retry.ExponentialBackoff(5, 100).On(func() error {
 			dest := net.TCPDestination(c.config.Address.AsAddress(), net.Port(c.config.Port))
@@ -231,8 +223,9 @@ func NewClient(ctx context.Context, config *ClientConfig) (*Client, error) {
 	storage.Put(ctx, UDPConnectionState, udpState)
 
 	return &Client{
-		config: config,
-		ctx:    ctx,
+		config:         config,
+		ctx:            ctx,
+		clientUDPState: udpState,
 	}, nil
 }
 
