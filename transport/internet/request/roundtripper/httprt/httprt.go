@@ -77,12 +77,15 @@ func (h *httpTripperClient) RoundTrip(ctx context.Context, req request.Request, 
 		return resp, err
 	}
 	defer httpResp.Body.Close()
+	if httpResp.StatusCode != http.StatusOK {
+		newError("non-200 response: ", httpResp.Status).AtInfo().WriteToLog()
+	}
 	if streamingWriter == nil {
 		result, err := io.ReadAll(httpResp.Body)
 		if err != nil {
 			return request.Response{}, err
 		}
-		return request.Response{Data: result}, err
+		return request.Response{Data: result}, nil
 	}
 	_, err = io.Copy(streamingWriter, httpResp.Body)
 	if err != nil {
@@ -170,10 +173,10 @@ func (h *httpTripperServer) Start() error {
 	h.listener = listener
 	go func() {
 		httpServer := http.Server{
-			ReadHeaderTimeout: 15 * time.Second,
-			ReadTimeout:       15 * time.Second,
-			WriteTimeout:      10 * time.Second,
-			IdleTimeout:       30 * time.Second,
+			ReadHeaderTimeout: 240 * time.Second,
+			ReadTimeout:       240 * time.Second,
+			WriteTimeout:      240 * time.Second,
+			IdleTimeout:       240 * time.Second,
 		}
 		httpServer.Handler = h
 		err := httpServer.Serve(h.listener)

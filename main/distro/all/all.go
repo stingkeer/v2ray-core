@@ -81,11 +81,20 @@ import (
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/request/stereotype/meek"
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/request/stereotype/mekya"
 
+	_ "github.com/v2fly/v2ray-core/v5/transport/internet/request/roundtripperreverserserver/clicommand"
+
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/dtls"
 
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/httpupgrade"
 
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/hysteria2"
+
+	_ "github.com/v2fly/v2ray-core/v5/transport/internet/rrpit/rrpitTransport"
+
+	_ "github.com/v2fly/v2ray-core/v5/transport/internet/tlsmirror/mirrorenrollment/roundtripperenrollmentconfirmation"
+	_ "github.com/v2fly/v2ray-core/v5/transport/internet/tlsmirror/server"
+
+	_ "github.com/v2fly/v2ray-core/v5/transport/internet/tlsmirror/mirrorenrollment/clicommand"
 
 	// Transport headers
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/headers/http"
@@ -108,6 +117,7 @@ import (
 
 	// engineering commands
 	_ "github.com/v2fly/v2ray-core/v5/main/commands/all/engineering"
+	_ "github.com/v2fly/v2ray-core/v5/main/commands/all/engineering/generateRandomData"
 
 	// Commands that rely on jsonv4 format This disable selective compile
 	_ "github.com/v2fly/v2ray-core/v5/main/commands/all/api/jsonv4"
